@@ -2330,11 +2330,19 @@ class WeaponSystem {
 
         // Third-person held pistol (attached to character group)
         const gun = new THREE.Group();
-        gun.add(new THREE.Mesh(CarGeoCache.box(0.09, 0.16, 0.2), CarGeoCache.mat(0x333338)));
-        const barrel = new THREE.Mesh(CarGeoCache.box(0.07, 0.09, 0.34), CarGeoCache.mat(0x55555c));
-        barrel.position.set(0, 0.09, -0.16);
-        gun.add(barrel);
-        gun.position.set(0.32, 1.15, -0.32);
+        // Barrel points -Z (world forward); slide + barrel + grip form a pistol silhouette
+        const slide = new THREE.Mesh(CarGeoCache.box(0.09, 0.12, 0.34), CarGeoCache.mat(0x333338));
+        slide.castShadow = true;
+        gun.add(slide);
+        const muzzle = new THREE.Mesh(CarGeoCache.box(0.06, 0.07, 0.1), CarGeoCache.mat(0x55555c));
+        muzzle.position.set(0, 0.01, -0.21);
+        muzzle.castShadow = true;
+        gun.add(muzzle);
+        const grip = new THREE.Mesh(CarGeoCache.box(0.08, 0.2, 0.1), CarGeoCache.mat(0x241a12));
+        grip.position.set(0, -0.14, 0.09);
+        grip.rotation.x = 0.35;
+        gun.add(grip);
+        gun.position.set(0.32, 1.15, -0.3);
         this.gunMesh = gun;
         game.character.getMesh().add(gun);
 
@@ -2422,11 +2430,12 @@ class WeaponSystem {
 
     getMuzzleWorldPos() {
         const g = this.game;
+        // Character forward is (-sin(yaw), -cos(yaw)) per CharacterController
         const yaw = g.controller ? g.controller.currentRotation : 0;
         return _gunAimTmp.set(
-            playerPosHelper.x + Math.sin(yaw) * 0.9,
+            playerPosHelper.x - Math.sin(yaw) * 0.9,
             playerPosHelper.y + 1.25,
-            playerPosHelper.z + Math.cos(yaw) * 0.9
+            playerPosHelper.z - Math.cos(yaw) * 0.9
         );
     }
 
@@ -8946,10 +8955,7 @@ class OutboundGame {
         }
 
         // Initialize world systems (pedestrians, roaming traffic, police)
-        this.worldSystems = new WorldSystems(this);
-
-        // Weapon system (single pistol) — created after input is available
-        this.weapon = null;
+        this.worldSystems = null; // created after HUD refs exist
 
         // Health / money / wanted state
         this.health = CONFIG.maxHealth;
@@ -8976,7 +8982,23 @@ class OutboundGame {
         this.updateHealthHUD();
         this.updateMoneyHUD();
         this.updateWantedHUD();
+
+        // Weapon system (single pistol) — created last, after all game state exists
+        try {
+            this.weapon = new WeaponSystem(this);
+        } catch (e) {
+            console.warn('Weapon system failed to initialize:', e);
+            this.weapon = null;
+        }
         this.updateAmmoHUD();
+
+        // World systems: pedestrians, roaming traffic, police
+        try {
+            this.worldSystems = new WorldSystems(this);
+        } catch (e) {
+            console.warn('World systems failed to initialize:', e);
+            this.worldSystems = null;
+        }
     }
 
     // ----------------------------------------------------------
@@ -9084,9 +9106,7 @@ class OutboundGame {
 
     initInput() {
         this.input = new InputManager();
-        // Weapon needs input + character mesh; safe to build here
-        this.weapon = new WeaponSystem(this);
-        this.updateAmmoHUD();
+        // Weapon system is created later (initWorld) once world state exists.
     }
 
     initAudio() {
@@ -9182,6 +9202,19 @@ class OutboundGame {
     animate() {
         requestAnimationFrame(() => this.animate());
 
+        try {
+        this._frame();
+        } catch (err) {
+            // Last-resort guard: never let a single-frame error kill the render loop
+            if (!this._loopErrLogged) {
+                this._loopErrLogged = true;
+                console.error('Game loop error (rendering continues):', err);
+            }
+            try { this.renderer.render(this.scene, this.camera); } catch (e2) { /* ignore */ }
+        }
+    }
+
+    _frame() {
         const deltaTime = Math.min(this.clock.getDelta(), 0.05);
 
         // ---- Death / respawn freeze ----
@@ -9196,6 +9229,17 @@ class OutboundGame {
         }
 
         const mouseDelta = this.input.consumeMouse();
+
+        // When pointer is locked, the OS cursor (and any lingering canvas click)
+        // can cause the browser to exit pointer lock immediately. Re-request it
+        // so aiming/camera control stays usable and the game never feels frozen.
+        if (!this.input.isMobile && !this.input.isLocked && !this._relockCool) {
+            this._relockCool = performance.now() + 600;
+            try { document.body.requestPointerLock(); } catch (e) { /* ignore */ }
+        } else if (this._relockCool && performance.now() > this._relockCool
+                   && !this.input.isMobile && !this.input.isLocked) {
+            this._relockCool = 0;
+        }
 
         // Handle vehicle/helicopter enter/exit
         const fKeyDown = this.input.enterVehicle;
