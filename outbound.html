@@ -78,92 +78,6 @@
             background: rgba(255,255,255,0.4);
             border-radius: 50%;
         }
-        /* Health bar */
-        #health-wrap {
-            position: absolute;
-            bottom: 24px;
-            left: 20px;
-            width: 220px;
-            pointer-events: none;
-        }
-        #health-label {
-            color: #fff;
-            font-size: 11px;
-            letter-spacing: 2px;
-            margin-bottom: 4px;
-            text-shadow: 0 1px 2px #000;
-        }
-        #health-bar-bg {
-            width: 100%;
-            height: 14px;
-            background: rgba(0,0,0,0.6);
-            border: 1px solid rgba(255,255,255,0.35);
-            border-radius: 7px;
-            overflow: hidden;
-        }
-        #health-bar-fill {
-            height: 100%;
-            width: 100%;
-            background: linear-gradient(90deg, #43a047, #66bb6a);
-            border-radius: 7px;
-            transition: width 0.2s ease;
-        }
-        #health-bar-fill.low { background: linear-gradient(90deg, #e53935, #ef5350); }
-        #health-bar-fill.mid { background: linear-gradient(90deg, #fb8c00, #ffa726); }
-        /* Money + wanted stars */
-        #money-display {
-            position: absolute;
-            top: 78px;
-            right: 20px;
-            color: #7CFC8A;
-            font-size: 18px;
-            font-weight: bold;
-            text-shadow: 0 0 6px rgba(0,255,100,0.4), 0 1px 2px #000;
-            text-align: right;
-        }
-        #wanted-stars {
-            position: absolute;
-            top: 102px;
-            right: 20px;
-            font-size: 16px;
-            letter-spacing: 3px;
-            color: rgba(255,255,255,0.25);
-            text-shadow: 0 1px 2px #000;
-            text-align: right;
-        }
-        #wanted-stars .on { color: #ffd54f; text-shadow: 0 0 8px rgba(255,180,0,0.8); }
-        /* Ammo / weapon */
-        #ammo-display {
-            position: absolute;
-            bottom: 24px;
-            right: 20px;
-            color: #fff;
-            font-size: 16px;
-            text-align: right;
-            text-shadow: 0 1px 2px #000;
-        }
-        #ammo-display small { display: block; font-size: 10px; color: rgba(255,255,255,0.6); letter-spacing: 2px; }
-        /* Damage flash + death overlay */
-        #damage-flash {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(ellipse at center, transparent 40%, rgba(200,0,0,0.45) 100%);
-            opacity: 0;
-            transition: opacity 0.25s ease;
-        }
-        #death-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(10,0,0,0.75);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 14px;
-            color: #fff;
-        }
-        #death-overlay h2 { font-size: 40px; letter-spacing: 8px; color: #e53935; }
-        #respawn-timer { font-size: 18px; }
         /* Minimal HUD container in top-left */
         #hud-prompts {
             position: absolute;
@@ -529,11 +443,9 @@
         <div id="title">OUTBOUND</div>
         <div id="controls">
             WASD - Move<br>
-            SHIFT - Sprint / Skip Time<br>
+            SHIFT - Run<br>
             CTRL - Crouch<br>
             SPACE - Jump<br>
-            F - Enter Vehicle<br>
-            G - Fire Pistol · R - Reload<br>
             Mouse - Look
         </div>
         <div id="state">STATE: IDLE</div>
@@ -545,18 +457,6 @@
             <div style="font-size: 14px; color: rgba(255,255,255,0.7);">KM/H</div>
         </div>
         <div id="crosshair"></div>
-        <div id="health-wrap">
-            <div id="health-label">HEALTH</div>
-            <div id="health-bar-bg"><div id="health-bar-fill"></div></div>
-        </div>
-        <div id="money-display">$0</div>
-        <div id="wanted-stars">★★★★★</div>
-        <div id="ammo-display"><small>PISTOL · G TO FIRE · R RELOAD</small><span id="ammo-text">12 / ∞</span></div>
-        <div id="damage-flash"></div>
-        <div id="death-overlay">
-            <h2>WASTED</h2>
-            <div id="respawn-timer">Respawning in 5...</div>
-        </div>
         <div id="hud-prompts">
             <div id="click-prompt" class="hud-prompt">Click to play<small>ESC to release mouse</small></div>
             <div id="vehicle-prompt" class="hud-prompt hidden">F - ENTER VEHICLE</div>
@@ -658,17 +558,6 @@ const CONFIG = {
     vehicleGroundHeight: 0.05, // Ground level
     vehicleCameraDistance: 8.0,
     vehicleCameraHeight: 3.0,
-
-    // Health system
-    maxHealth: 100,
-    fallDamageThreshold: 6.0,   // m/s vertical impact before damage
-    healthRegenDelay: 12.0,     // seconds without damage before regen starts
-    healthRegenRate: 4.0,       // HP per second while regenerating
-
-    // Combat / wanted system
-    gunDamage: 34,              // pistol damage per shot (3 shots to kill)
-    moneyPerKill: 50,           // bounty cash reward
-    trafficHitWanted: 1,        // wanted stars for running over a pedestrian
 };
 
 // ============================================================
@@ -1041,18 +930,6 @@ class InputManager {
         return this.keys['KeyF'];
     }
 
-    // Combat controls
-    get fire() {
-        if (this.isMobile) {
-            return this.mobileButtons.enterVehicle; // reuse F button as fire on mobile
-        }
-        return this.keys['KeyG'];
-    }
-
-    get reload() {
-        return this.keys['KeyR'];
-    }
-
     // Get joystick vector for smooth movement
     getJoystickVector() {
         if (this.isMobile && this.joystickActive) {
@@ -1105,9 +982,9 @@ class Character {
 
         this.materials = {
             skin: new THREE.MeshLambertMaterial({ color: 0xe8b896 }),
-            shirt: new THREE.MeshLambertMaterial({ color: 0xf2e6c9 }),   // cream shirt
-            jacket: new THREE.MeshLambertMaterial({ color: 0x1f2a44 }),  // navy blue jacket
-            trousers: new THREE.MeshLambertMaterial({ color: 0x2b3a5c }), // navy blue trousers
+            shirt: new THREE.MeshLambertMaterial({ color: 0x4a7a4a }),
+            jacket: new THREE.MeshLambertMaterial({ color: 0x5a7a51 }),
+            trousers: new THREE.MeshLambertMaterial({ color: 0x3d4d3d }),
             shoes: new THREE.MeshLambertMaterial({ color: 0x2a1a0a }),
             hair: new THREE.MeshLambertMaterial({ color: 0x3a2a1a }),
             belt: new THREE.MeshLambertMaterial({ color: 0x5a3a1a }),
@@ -1117,7 +994,7 @@ class Character {
             lip: new THREE.MeshLambertMaterial({ color: 0xc89080 }),
             nose: new THREE.MeshLambertMaterial({ color: 0xd4a574 }),
             eyebrow: new THREE.MeshLambertMaterial({ color: 0x2a1a0a }),
-            collar: new THREE.MeshLambertMaterial({ color: 0xf2e6c9 }), // cream collar
+            collar: new THREE.MeshLambertMaterial({ color: 0x3a5a3a }),
         };
 
         this.buildSkeleton();
@@ -1453,9 +1330,6 @@ class Vehicle {
         // Ensure vehicle is properly initialized above ground
         this.position.y = Math.max(this.position.y, CONFIG.vehicleGroundHeight + 0.1);
 
-        // Engine spec from the sports-car blueprint (structured design data)
-        this.engineSpec = CAR_BLUEPRINTS.sports.engine;
-
         // Materials
         this.materials = {
             body: new THREE.MeshLambertMaterial({ color: 0xffaa00 }), // Lamborghini yellow
@@ -1655,14 +1529,13 @@ class Vehicle {
         }
 
         // Apply acceleration with smooth ramp-up
-        const eng = this.engineSpec || CONFIG;
         if (Math.abs(accelerationInput) > 0.1) {
             if (accelerationInput > 0) {
                 // Accelerating forward
-                this.speed += eng.accel * accelerationInput * deltaTime;
+                this.speed += CONFIG.vehicleAcceleration * accelerationInput * deltaTime;
             } else {
                 // Braking or reversing
-                this.speed += eng.brake * accelerationInput * deltaTime;
+                this.speed += CONFIG.vehicleBraking * accelerationInput * deltaTime;
             }
         } else {
             // Natural deceleration when no input
@@ -1674,8 +1547,8 @@ class Vehicle {
             this.speed *= Math.pow(1 - CONFIG.vehicleHandbrake * 0.1, deltaTime * 60);
         }
 
-        // Clamp speed to the engine's limits
-        const maxForwardSpeed = eng.maxSpeed;
+        // Clamp speed to realistic limits (±80 km/h = ±22.22 m/s)
+        const maxForwardSpeed = CONFIG.vehicleMaxSpeed;
         const maxReverseSpeed = CONFIG.vehicleMaxSpeed * 0.3; // 30% of forward speed
         this.speed = THREE.MathUtils.clamp(this.speed, -maxReverseSpeed, maxForwardSpeed);
 
@@ -1690,8 +1563,8 @@ class Vehicle {
         }
 
         // Smooth steering with speed-dependent sensitivity
-        const speedFactor = Math.abs(this.speed) / eng.maxSpeed;
-        const steeringSensitivity = eng.steer * (1 - speedFactor * 0.5); // Less steering at high speed
+        const speedFactor = Math.abs(this.speed) / CONFIG.vehicleMaxSpeed;
+        const steeringSensitivity = CONFIG.vehicleSteeringSpeed * (1 - speedFactor * 0.5); // Less steering at high speed
 
         if (Math.abs(steeringInput) > 0.1) {
             this.steering += steeringInput * steeringSensitivity * deltaTime;
@@ -1706,7 +1579,7 @@ class Vehicle {
         // === ROTATION & ANGULAR DAMPING ===
         // Apply steering to rotation (only when moving)
         if (Math.abs(this.speed) > 0.5) {
-            const turnRate = this.steering * (this.speed / eng.maxSpeed) * eng.grip;
+            const turnRate = this.steering * (this.speed / CONFIG.vehicleMaxSpeed) * 1.5;
             this.angularVelocity = turnRate;
         } else {
             this.angularVelocity = 0;
@@ -1809,834 +1682,6 @@ class Vehicle {
 }
 
 // ============================================================
-// ============================================================
-// CAR BLUEPRINTS - structured designs: sedan, sports, hatchback, truck, police
-// ============================================================
-const CAR_BLUEPRINTS = {
-    sedan: {
-        name: 'SEDAN', bodyColor: 0x3D6FB4, w: 2.0, len: 4.6, h: 0.55, y: 0.52,
-        cabin: { w: 1.75, h: 0.62, d: 2.2, z: 0.15 }, hoodRake: 0.06, trunk: true,
-        wheelX: 0.95, wheelZ: 1.45, wheelR: 0.36,
-        engine: { accel: 6.0, maxSpeed: 20, brake: 9, steer: 2.0, grip: 1.5, sound: 90 }
-    },
-    sports: {
-        name: 'SPORTS', bodyColor: 0xE8B800, w: 2.1, len: 4.3, h: 0.42, y: 0.45,
-        cabin: { w: 1.6, h: 0.45, d: 1.7, z: 0.35 }, hoodRake: 0.12, trunk: false, spoiler: true,
-        wheelX: 1.0, wheelZ: 1.4, wheelR: 0.34,
-        engine: { accel: 9.5, maxSpeed: 32, brake: 12, steer: 2.3, grip: 1.8, sound: 130 }
-    },
-    hatchback: {
-        name: 'HATCHBACK', bodyColor: 0xC0392B, w: 1.85, len: 3.7, h: 0.55, y: 0.52,
-        cabin: { w: 1.7, h: 0.6, d: 2.0, z: 0.35 }, hoodRake: 0.08, hatchBack: true,
-        wheelX: 0.88, wheelZ: 1.15, wheelR: 0.33,
-        engine: { accel: 6.8, maxSpeed: 22, brake: 9.5, steer: 2.2, grip: 1.6, sound: 100 }
-    },
-    truck: {
-        name: 'TRUCK', bodyColor: 0x2E7D32, w: 2.4, len: 7.2, h: 0.9, y: 0.85,
-        cabin: { w: 2.3, h: 1.1, d: 1.8, z: -2.2 }, hoodRake: 0.0, box: { w: 2.5, h: 2.2, d: 4.0, z: 1.3 },
-        wheelX: 1.15, wheelZ: 2.6, wheelR: 0.5, wheelsCount: 6,
-        engine: { accel: 3.2, maxSpeed: 14, brake: 7, steer: 1.4, grip: 1.0, sound: 55 }
-    },
-    police: {
-        name: 'POLICE CRUISER', bodyColor: 0xF4F4F4, w: 2.05, len: 4.9, h: 0.55, y: 0.52,
-        cabin: { w: 1.8, h: 0.62, d: 2.2, z: 0.15 }, hoodRake: 0.06, trunk: true, lightbar: true,
-        doorPanel: 0x1B2A4A,
-        wheelX: 0.97, wheelZ: 1.5, wheelR: 0.36,
-        engine: { accel: 7.5, maxSpeed: 27, brake: 11, steer: 2.1, grip: 1.6, sound: 110 }
-    }
-};
-
-// Shared low-poly geometry/material cache for all cars & NPCs (performance)
-const CarGeoCache = {
-    _cache: new Map(),
-    box(w, h, d) {
-        const k = `b${w}_${h}_${d}`;
-        if (!this._cache.has(k)) this._cache.set(k, new THREE.BoxGeometry(w, h, d));
-        return this._cache.get(k);
-    },
-    cyl(rt, rb, h, seg) {
-        const k = `c${rt}_${rb}_${h}_${seg}`;
-        if (!this._cache.has(k)) this._cache.set(k, new THREE.CylinderGeometry(rt, rb, h, seg));
-        return this._cache.get(k);
-    },
-    mat(color) {
-        const k = `m${color}`;
-        if (!this._cache.has(k)) this._cache.set(k, new THREE.MeshLambertMaterial({ color, flatShading: true }));
-        return this._cache.get(k);
-    }
-};
-
-const _npcTmp = new THREE.Vector3();
-
-// ============================================================
-// TRAFFIC VEHICLE - blueprint-built car with an AI driving engine
-// (follows road polylines, right-hand lane, stops for obstacles)
-// ============================================================
-class TrafficVehicle {
-    constructor(scene, world, type) {
-        this.scene = scene;
-        this.world = world;
-        this.type = type;
-        this.bp = CAR_BLUEPRINTS[type];
-        this.mesh = new THREE.Group();
-        this.mesh.name = 'Traffic_' + type;
-
-        // Physics state
-        this.position = new THREE.Vector3(0, 0.12, 0);
-        this.rotation = 0;
-        this.speed = 0;
-        this.steering = 0;
-        this.wheelSpin = 0;
-        this.isOccupied = false;
-        this.enginePhase = Math.random() * Math.PI * 2;
-
-        // AI route state
-        this.aiSegIndex = 0;
-        this.aiTarget = new THREE.Vector3();
-        this.aiStoppedFor = 0;
-
-        this.buildMesh();
-        this.mesh.position.copy(this.position);
-        scene.add(this.mesh);
-    }
-
-    buildMesh() {
-        const bp = this.bp;
-        const g = this.mesh;
-        const bodyMat = CarGeoCache.mat(bp.bodyColor);
-        const darkMat = CarGeoCache.mat(0x222222);
-        const glassMat = CarGeoCache.mat(0x1a2a35);
-        const tireMat = CarGeoCache.mat(0x151515);
-        const rimMat = CarGeoCache.mat(0x999999);
-        const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffee });
-        const tailMat = new THREE.MeshBasicMaterial({ color: 0xff2222 });
-
-        // Chassis
-        const body = new THREE.Mesh(CarGeoCache.box(bp.w, bp.h, bp.len), bodyMat);
-        body.position.y = bp.y;
-        body.castShadow = true;
-        g.add(body);
-
-        // Hood (raked)
-        const hood = new THREE.Mesh(CarGeoCache.box(bp.w * 0.9, 0.12, bp.len * 0.3), darkMat);
-        hood.position.set(0, bp.y + bp.h / 2 + 0.08, -bp.len * 0.3);
-        hood.rotation.x = -bp.hoodRake;
-        g.add(hood);
-
-        // Cabin
-        const cab = bp.cabin;
-        const cabin = new THREE.Mesh(CarGeoCache.box(cab.w, cab.h, cab.d), glassMat);
-        cabin.position.set(0, bp.y + bp.h / 2 + cab.h / 2 - 0.05, cab.z);
-        cabin.castShadow = true;
-        g.add(cabin);
-
-        // Trunk / hatch / spoiler / cargo box
-        if (bp.trunk) {
-            const trunk = new THREE.Mesh(CarGeoCache.box(bp.w * 0.9, 0.14, bp.len * 0.22), bodyMat);
-            trunk.position.set(0, bp.y + bp.h / 2 + 0.05, bp.len * 0.36);
-            g.add(trunk);
-        }
-        if (bp.hatchBack) {
-            const hatch = new THREE.Mesh(CarGeoCache.box(bp.w * 0.92, 0.5, 0.14), bodyMat);
-            hatch.position.set(0, bp.y + bp.h / 2 + 0.3, bp.len * 0.42);
-            hatch.rotation.x = 0.25;
-            g.add(hatch);
-        }
-        if (bp.spoiler) {
-            const wing = new THREE.Mesh(CarGeoCache.box(bp.w * 0.9, 0.06, 0.35), darkMat);
-            wing.position.set(0, bp.y + bp.h / 2 + 0.55, bp.len * 0.42);
-            g.add(wing);
-            const postL = new THREE.Mesh(CarGeoCache.box(0.06, 0.4, 0.1), darkMat);
-            postL.position.set(-bp.w * 0.35, bp.y + bp.h / 2 + 0.32, bp.len * 0.42);
-            g.add(postL);
-            const postR = postL.clone();
-            postR.position.x = bp.w * 0.35;
-            g.add(postR);
-        }
-        if (bp.box) {
-            const cargo = new THREE.Mesh(CarGeoCache.box(bp.box.w, bp.box.h, bp.box.d), CarGeoCache.mat(0xDDDDDD));
-            cargo.position.set(0, bp.y + bp.h / 2 + bp.box.h / 2 - 0.1, bp.box.z);
-            cargo.castShadow = true;
-            g.add(cargo);
-        }
-        if (bp.doorPanel) {
-            const dp = new THREE.Mesh(CarGeoCache.box(bp.w + 0.02, 0.3, bp.len * 0.45), CarGeoCache.mat(bp.doorPanel));
-            dp.position.set(0, bp.y, 0.2);
-            g.add(dp);
-        }
-        if (bp.lightbar) {
-            this.lightbarParts = [];
-            const red = new THREE.Mesh(CarGeoCache.box(0.5, 0.16, 0.3), new THREE.MeshBasicMaterial({ color: 0xff2233 }));
-            red.position.set(-0.45, bp.y + bp.h / 2 + cab.h + 0.08, cab.z);
-            const blue = new THREE.Mesh(CarGeoCache.box(0.5, 0.16, 0.3), new THREE.MeshBasicMaterial({ color: 0x2244ff }));
-            blue.position.set(0.45, bp.y + bp.h / 2 + cab.h + 0.08, cab.z);
-            g.add(red); g.add(blue);
-            this.lightbarParts.push(red, blue);
-        }
-
-        // Head/tail lights
-        const hl = new THREE.Mesh(CarGeoCache.box(0.35, 0.12, 0.06), lightMat);
-        hl.position.set(-bp.w * 0.32, bp.y + 0.05, -bp.len / 2 - 0.03);
-        g.add(hl);
-        const hl2 = hl.clone(); hl2.position.x = bp.w * 0.32; g.add(hl2);
-        const tl = new THREE.Mesh(CarGeoCache.box(0.4, 0.12, 0.06), tailMat);
-        tl.position.set(-bp.w * 0.32, bp.y + 0.05, bp.len / 2 + 0.03);
-        g.add(tl);
-        const tl2 = tl.clone(); tl2.position.x = bp.w * 0.32; g.add(tl2);
-
-        // Wheels
-        this.wheels = [];
-        const wr = bp.wheelR;
-        const positions = [
-            { x: -bp.wheelX, z: -bp.wheelZ, steer: true },
-            { x: bp.wheelX, z: -bp.wheelZ, steer: true },
-            { x: -bp.wheelX, z: bp.wheelZ, steer: false },
-            { x: bp.wheelX, z: bp.wheelZ, steer: false },
-        ];
-        if (bp.wheelsCount === 6) {
-            positions.push({ x: -bp.wheelX, z: bp.wheelZ * 0.55, steer: false });
-            positions.push({ x: bp.wheelX, z: bp.wheelZ * 0.55, steer: false });
-        }
-        positions.forEach(pos => {
-            const wg = new THREE.Group();
-            const tire = new THREE.Mesh(CarGeoCache.cyl(wr, wr, 0.24, 10), tireMat);
-            tire.rotation.z = Math.PI / 2;
-            wg.add(tire);
-            const rim = new THREE.Mesh(CarGeoCache.cyl(wr * 0.55, wr * 0.55, 0.25, 6), rimMat);
-            rim.rotation.z = Math.PI / 2;
-            wg.add(rim);
-            wg.position.set(pos.x, wr, pos.z);
-            wg.userData.steerable = pos.steer;
-            g.add(wg);
-            this.wheels.push(wg);
-        });
-    }
-
-    placeOnRoad(segIndex) {
-        const roads = this.world._roadPolylines;
-        if (!roads || !roads.length) return;
-        const seg = roads[segIndex % roads.length];
-        this.aiSegIndex = segIndex % roads.length;
-        const t = Math.random();
-        this.position.set(
-            seg.x1 + (seg.x2 - seg.x1) * t,
-            0.12,
-            seg.z1 + (seg.z2 - seg.z1) * t
-        );
-        this.rotation = Math.atan2(-(seg.z2 - seg.z1), -(seg.x2 - seg.x1));
-        this.mesh.position.copy(this.position);
-        this.mesh.rotation.y = this.rotation;
-    }
-
-    nextAiSegment() {
-        const roads = this.world._roadPolylines;
-        const cur = roads[this.aiSegIndex];
-        if (!cur) return;
-        const ex = cur.x2, ez = cur.z2;
-        let best = -1, bestScore = Infinity;
-        const curAngle = Math.atan2(ez - cur.z1, ex - cur.x1);
-        for (let i = 0; i < roads.length; i++) {
-            const s = roads[i];
-            let sx, sz;
-            if (Math.hypot(s.x1 - ex, s.z1 - ez) < 6) { sx = s.x2; sz = s.z2; }
-            else if (Math.hypot(s.x2 - ex, s.z2 - ez) < 6) { sx = s.x1; sz = s.z1; }
-            else continue;
-            const ang = Math.atan2(sz - ez, sx - ex);
-            let diff = Math.abs(ang - curAngle);
-            if (diff > Math.PI) diff = Math.PI * 2 - diff;
-            if (diff < 2.6 && diff < bestScore) { bestScore = diff; best = i; }
-        }
-        this.aiSegIndex = best >= 0 ? best : (this.aiSegIndex + 1) % roads.length;
-    }
-
-    update(deltaTime, world, npcs) {
-        if (this.isOccupied) return;
-        const eng = this.bp.engine;
-
-        const roads = world._roadPolylines;
-        const seg = roads[this.aiSegIndex];
-        if (seg) {
-            const dx = seg.x2 - seg.x1, dz = seg.z2 - seg.z1;
-            const len = Math.hypot(dx, dz) || 1;
-            const ox = (-dz / len) * Math.min(3, seg.width * 0.22);
-            const oz = (dx / len) * Math.min(3, seg.width * 0.22);
-            this.aiTarget.set(seg.x2 + ox, 0, seg.z2 + oz);
-        }
-
-        const toTarget = _npcTmp.subVectors(this.aiTarget, this.position);
-        const targetAngle = Math.atan2(-toTarget.x, -toTarget.z);
-        let angleDiff = targetAngle - this.rotation;
-        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-        this.steering = THREE.MathUtils.clamp(angleDiff * 1.6, -0.5, 0.5);
-
-        // Stop for obstacles ahead (player on foot / player car / pedestrians)
-        let blocked = false;
-        const fx = -Math.sin(this.rotation), fz = -Math.cos(this.rotation);
-        const game = window.__game;
-        const checkPos = (px, pz, r) => {
-            const rx = px - this.position.x, rz = pz - this.position.z;
-            const ahead = rx * fx + rz * fz;
-            if (ahead > 0 && ahead < 9) {
-                const side = Math.abs(rx * fz - rz * fx);
-                if (side < r + 1.4) blocked = true;
-            }
-        };
-        if (game && game.controller && !game.inVehicle) checkPos(game.controller.position.x, game.controller.position.z, 1.0);
-        if (game && game.inVehicle && game.vehicle) checkPos(game.vehicle.position.x, game.vehicle.position.z, 2.4);
-        if (npcs) {
-            for (const n of npcs) {
-                if (n.state === 'DEAD') continue;
-                checkPos(n.position.x, n.position.z, 0.6);
-                if (blocked) break;
-            }
-        }
-
-        const cruise = eng.maxSpeed * 0.45;
-        if (blocked) {
-            this.speed *= Math.pow(0.8, deltaTime * 60);
-            this.aiStoppedFor += deltaTime;
-        } else {
-            this.aiStoppedFor = 0;
-            if (this.speed < cruise) this.speed = Math.min(cruise, this.speed + eng.accel * deltaTime);
-            else this.speed *= Math.pow(0.98, deltaTime * 60);
-        }
-
-        if (Math.abs(this.speed) > 0.3) {
-            this.rotation += this.steering * (this.speed / eng.maxSpeed) * eng.grip * deltaTime;
-        }
-
-        this.position.x += -Math.sin(this.rotation) * this.speed * deltaTime;
-        this.position.z += -Math.cos(this.rotation) * this.speed * deltaTime;
-        this.position.y = 0.12;
-
-        if (Math.hypot(toTarget.x, toTarget.z) < 8) this.nextAiSegment();
-        if (this.aiStoppedFor > 6) {
-            this.aiStoppedFor = 0;
-            this.nextAiSegment();
-        }
-
-        this.applyTransform(deltaTime);
-    }
-
-    applyTransform(deltaTime) {
-        this.mesh.position.copy(this.position);
-        this.mesh.rotation.y = this.rotation;
-        this.wheelSpin += this.speed * deltaTime * 3;
-        for (const w of this.wheels) {
-            w.children[0].rotation.x = this.wheelSpin;
-            w.children[1].rotation.x = this.wheelSpin;
-            if (w.userData.steerable) w.rotation.y = this.steering * 0.6;
-        }
-        if (this.lightbarParts) {
-            this.enginePhase += deltaTime * 10;
-            const s = Math.sin(this.enginePhase) > 0;
-            this.lightbarParts[0].visible = s;
-            this.lightbarParts[1].visible = !s;
-        }
-    }
-}
-
-// ============================================================
-// NPC PEDESTRIAN - walks sidewalks, flees from threats, can be killed
-// ============================================================
-const NPC_SHIRTS = [0xE57373, 0x64B5F6, 0x81C784, 0xFFD54F, 0xBA68C8, 0xFF8A65, 0x4DB6AC, 0xF06292];
-const NPC_PANTS = [0x37474F, 0x5D4037, 0x263238, 0x455A64, 0x3E2723];
-
-class Pedestrian {
-    constructor(scene, world, index) {
-        this.scene = scene;
-        this.world = world;
-        this.index = index;
-        this.position = new THREE.Vector3();
-        this.rotation = 0;
-        this.speed = 0;
-        this.target = new THREE.Vector3();
-        this.state = 'WALK'; // WALK | FLEE | DEAD
-        this.deadTimer = 0;
-        this.walkPhase = Math.random() * 10;
-        this.pauseTimer = 0;
-
-        const shirt = NPC_SHIRTS[index % NPC_SHIRTS.length];
-        const pants = NPC_PANTS[(index * 3) % NPC_PANTS.length];
-        const skin = CarGeoCache.mat(index % 2 ? 0xD9A66B : 0x8D5524);
-        const shirtMat = CarGeoCache.mat(shirt);
-        const pantsMat = CarGeoCache.mat(pants);
-
-        this.group = new THREE.Group();
-        this.legL = new THREE.Group();
-        this.legR = new THREE.Group();
-        const legGeo = CarGeoCache.box(0.16, 0.75, 0.18);
-        const meshL = new THREE.Mesh(legGeo, pantsMat); meshL.position.y = -0.375; this.legL.add(meshL);
-        const meshR = new THREE.Mesh(legGeo, pantsMat); meshR.position.y = -0.375; this.legR.add(meshR);
-        this.legL.position.set(-0.12, 0.78, 0);
-        this.legR.position.set(0.12, 0.78, 0);
-        const torso = new THREE.Mesh(CarGeoCache.box(0.46, 0.6, 0.26), shirtMat);
-        torso.position.y = 1.08;
-        torso.castShadow = true;
-        const head = new THREE.Mesh(CarGeoCache.box(0.24, 0.24, 0.24), skin);
-        head.position.y = 1.55;
-        const hair = new THREE.Mesh(CarGeoCache.box(0.26, 0.08, 0.26), CarGeoCache.mat(0x2b1d0e));
-        hair.position.y = 1.7;
-        this.armL = new THREE.Group();
-        this.armR = new THREE.Group();
-        const armGeo = CarGeoCache.box(0.12, 0.55, 0.14);
-        const aM = new THREE.Mesh(armGeo, shirtMat); aM.position.y = -0.27; this.armL.add(aM);
-        const aM2 = new THREE.Mesh(armGeo, shirtMat); aM2.position.y = -0.27; this.armR.add(aM2);
-        this.armL.position.set(-0.3, 1.35, 0);
-        this.armR.position.set(0.3, 1.35, 0);
-
-        this.group.add(this.legL, this.legR, torso, head, hair, this.armL, this.armR);
-        scene.add(this.group);
-    }
-
-    spawnAt(x, z) {
-        this.position.set(x, this.world.getGroundHeight(x, z), z);
-        this.pickNewTarget();
-        this.state = 'WALK';
-        this.deadTimer = 0;
-        this.group.visible = true;
-        this.group.rotation.set(0, 0, 0);
-    }
-
-    pickNewTarget() {
-        const roads = this.world._roadPolylines;
-        if (!roads || !roads.length) return;
-        const seg = roads[Math.floor(Math.random() * roads.length)];
-        const t = Math.random();
-        const dx = seg.x2 - seg.x1, dz = seg.z2 - seg.z1;
-        const len = Math.hypot(dx, dz) || 1;
-        const off = (Math.random() < 0.5 ? 1 : -1) * (seg.width / 2 + 1.5);
-        this.target.set(
-            seg.x1 + dx * t + (-dz / len) * off,
-            0,
-            seg.z1 + dz * t + (dx / len) * off
-        );
-    }
-
-    die() {
-        if (this.state === 'DEAD') return false;
-        this.state = 'DEAD';
-        this.deadTimer = 0;
-        return true;
-    }
-
-    respawnNear(playerPos) {
-        const roads = this.world._roadPolylines;
-        for (let i = 0; i < 12; i++) {
-            const seg = roads[Math.floor(Math.random() * roads.length)];
-            const t = Math.random();
-            const x = seg.x1 + (seg.x2 - seg.x1) * t;
-            const z = seg.z1 + (seg.z2 - seg.z1) * t;
-            const d = Math.hypot(x - playerPos.x, z - playerPos.z);
-            if (d > 45 && d < 160) { this.spawnAt(x, z); return; }
-        }
-        this.spawnAt(playerPos.x + 60, playerPos.z + 40);
-    }
-
-    update(deltaTime, playerPos, playerThreat) {
-        if (this.state === 'DEAD') {
-            this.deadTimer += deltaTime;
-            this.group.rotation.x = Math.min(Math.PI / 2, this.deadTimer * 5);
-            this.group.position.copy(this.position);
-            return;
-        }
-
-        const distToPlayer = Math.hypot(playerPos.x - this.position.x, playerPos.z - this.position.z);
-
-        const threat = playerThreat && distToPlayer < 14;
-        if (threat) this.state = 'FLEE';
-        else if (this.state === 'FLEE' && distToPlayer > 25) this.state = 'WALK';
-
-        let moveTarget = this.target;
-        let stepSpeed = 1.4;
-        if (this.state === 'FLEE') {
-            const ax = this.position.x - playerPos.x;
-            const az = this.position.z - playerPos.z;
-            const al = Math.hypot(ax, az) || 1;
-            moveTarget = { x: this.position.x + (ax / al) * 20, z: this.position.z + (az / al) * 20 };
-            stepSpeed = 4.6;
-        }
-
-        const dx = moveTarget.x - this.position.x;
-        const dz = moveTarget.z - this.position.z;
-        const dist = Math.hypot(dx, dz);
-
-        if (dist < 1.5 && this.state !== 'FLEE') {
-            this.pauseTimer -= deltaTime;
-            if (this.pauseTimer <= 0) { this.pickNewTarget(); this.pauseTimer = 1 + Math.random() * 3; }
-            this.speed = 0;
-        } else {
-            const wantRot = Math.atan2(-dx, -dz);
-            let diff = wantRot - this.rotation;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            this.rotation += THREE.MathUtils.clamp(diff, -4 * deltaTime, 4 * deltaTime);
-            this.speed = stepSpeed;
-            const nx = this.position.x - Math.sin(this.rotation) * this.speed * deltaTime;
-            const nz = this.position.z - Math.cos(this.rotation) * this.speed * deltaTime;
-            let blocked = false;
-            const cs = this.world.collisionSystem;
-            if (cs && cs.colliders) {
-                for (const c of cs.colliders) {
-                    if (c instanceof BoxCollider) {
-                        const hw = (c.width || 0) / 2 + 0.4, hd = (c.depth || 0) / 2 + 0.4;
-                        if (nx > c.position.x - hw && nx < c.position.x + hw &&
-                            nz > c.position.z - hd && nz < c.position.z + hd) { blocked = true; break; }
-                    }
-                }
-            }
-            if (!blocked) {
-                this.position.x = nx;
-                this.position.z = nz;
-            } else {
-                this.pickNewTarget();
-            }
-        }
-
-        this.position.y = this.world.getGroundHeight(this.position.x, this.position.z);
-        this.group.position.copy(this.position);
-        this.group.rotation.y = this.rotation;
-
-        this.walkPhase += deltaTime * this.speed * 2.4;
-        const swing = Math.sin(this.walkPhase) * (this.speed > 3 ? 0.9 : 0.55);
-        this.legL.rotation.x = swing;
-        this.legR.rotation.x = -swing;
-        this.armL.rotation.x = -swing * 0.8;
-        this.armR.rotation.x = swing * 0.8;
-    }
-}
-
-// ============================================================
-// WEAPON SYSTEM - single pistol with hitscan firing, reload,
-// muzzle flash and ejected shell FX (pooled for performance)
-// ============================================================
-const _gunAimTmp = new THREE.Vector3();
-
-class WeaponSystem {
-    constructor(game) {
-        this.game = game;
-        this.scene = game.scene;
-        this.magSize = 12;
-        this.ammo = this.magSize;
-        this.reserve = Infinity;
-        this.fireCooldown = 0.25;
-        this.reloadTime = 1.4;
-        this.cooldownTimer = 0;
-        this.reloadTimer = 0;
-        this.reloading = false;
-        this._wasFire = false;
-        this._wasReload = false;
-
-        // Third-person held pistol (attached to character group)
-        const gun = new THREE.Group();
-        // Barrel points -Z (world forward); slide + barrel + grip form a pistol silhouette
-        const slide = new THREE.Mesh(CarGeoCache.box(0.09, 0.12, 0.34), CarGeoCache.mat(0x333338));
-        slide.castShadow = true;
-        gun.add(slide);
-        const muzzle = new THREE.Mesh(CarGeoCache.box(0.06, 0.07, 0.1), CarGeoCache.mat(0x55555c));
-        muzzle.position.set(0, 0.01, -0.21);
-        muzzle.castShadow = true;
-        gun.add(muzzle);
-        const grip = new THREE.Mesh(CarGeoCache.box(0.08, 0.2, 0.1), CarGeoCache.mat(0x241a12));
-        grip.position.set(0, -0.14, 0.09);
-        grip.rotation.x = 0.35;
-        gun.add(grip);
-        gun.position.set(0.32, 1.15, -0.3);
-        this.gunMesh = gun;
-        game.character.getMesh().add(gun);
-
-        // Pooled FX: muzzle flashes + shells
-        this.flashes = [];
-        for (let i = 0; i < 3; i++) {
-            const f = new THREE.Mesh(
-                CarGeoCache.cyl(0.05, 0.11, 0.26, 6),
-                new THREE.MeshBasicMaterial({ color: 0xffdd66, transparent: true })
-            );
-            f.rotation.x = Math.PI / 2;
-            f.visible = false;
-            scene.add(f);
-            this.flashes.push({ mesh: f, t: 0 });
-        }
-        this.shells = [];
-        for (let i = 0; i < 8; i++) {
-            const s = new THREE.Mesh(CarGeoCache.box(0.05, 0.05, 0.11), CarGeoCache.mat(0xC9A227));
-            s.visible = false;
-            scene.add(s);
-            this.shells.push({ mesh: s, t: 99, vel: new THREE.Vector3() });
-        }
-    }
-
-    update(deltaTime, camera, playerPos) {
-        this.cooldownTimer = Math.max(0, this.cooldownTimer - deltaTime);
-        if (this.reloading) {
-            this.reloadTimer -= deltaTime;
-            if (this.reloadTimer <= 0) {
-                const need = this.magSize - this.ammo;
-                this.ammo = this.magSize;
-                this.reloading = false;
-                this.game.updateAmmoHUD();
-            }
-        }
-
-        const input = this.game.input;
-        const fireDown = !!input.fire && !this.game.inVehicle && !this.game.inHelicopter && !this.game.isDead;
-        const reloadDown = !!input.reload && !this.game.inVehicle && !this.game.inHelicopter;
-
-        if (reloadDown && !this._wasReload && !this.reloading && this.ammo < this.magSize) {
-            this.reloading = true;
-            this.reloadTimer = this.reloadTime;
-        }
-        if (fireDown && !this._wasFire && !this.reloading && this.cooldownTimer <= 0) {
-            if (this.ammo > 0) {
-                this.ammo--;
-                this.cooldownTimer = this.fireCooldown;
-                this.fire(camera, playerPos);
-            } else {
-                this.reloading = true;
-                this.reloadTimer = this.reloadTime;
-            }
-            this.game.updateAmmoHUD();
-        }
-        this._wasFire = fireDown;
-        this._wasReload = reloadDown;
-
-        // Animate pooled FX
-        const origin = this.getMuzzleWorldPos();
-        for (const f of this.flashes) {
-            if (f.t > 0) {
-                f.t -= deltaTime;
-                const m = f.mesh.material;
-                m.opacity = Math.max(0, f.t * 10);
-                const sc = 0.6 + f.t * 6;
-                f.mesh.scale.set(sc, sc, sc);
-                if (f.t <= 0) f.mesh.visible = false;
-            }
-        }
-        for (const s of this.shells) {
-            if (s.t < 1.4) {
-                s.t += deltaTime;
-                s.vel.y -= 14 * deltaTime;
-                s.mesh.position.addScaledVector(s.vel, deltaTime);
-                s.mesh.rotation.x += deltaTime * 9;
-                s.mesh.rotation.z += deltaTime * 7;
-                if (s.t >= 1.4 || s.mesh.position.y < (this.game.world ? this.game.world.getGroundHeight(s.mesh.position.x, s.mesh.position.z) : 0)) {
-                    s.t = 99;
-                    s.mesh.visible = false;
-                }
-            }
-        }
-    }
-
-    getMuzzleWorldPos() {
-        const g = this.game;
-        // Character forward is (-sin(yaw), -cos(yaw)) per CharacterController
-        const yaw = g.controller ? g.controller.currentRotation : 0;
-        return _gunAimTmp.set(
-            playerPosHelper.x - Math.sin(yaw) * 0.9,
-            playerPosHelper.y + 1.25,
-            playerPosHelper.z - Math.cos(yaw) * 0.9
-        );
-    }
-
-    fire(camera, playerPos) {
-        playerPosHelper.copy(playerPos);
-        playerPosHelper.y += 1.25;
-        const origin = this.getMuzzleWorldPos().clone();
-
-        // Muzzle flash
-        for (const f of this.flashes) {
-            if (!f.mesh.visible) {
-                f.mesh.position.copy(origin);
-                f.mesh.lookAt(this.game.gtaCamForward.fwd);
-                f.mesh.visible = true;
-                f.t = 0.1;
-                break;
-            }
-        }
-        // Shell eject
-        for (const s of this.shells) {
-            if (!s.mesh.visible) {
-                s.mesh.position.copy(origin);
-                s.vel.set((Math.random() - 0.5) * 2.5, 3 + Math.random(), (Math.random() - 0.5) * 2.5);
-                s.t = 0;
-                s.mesh.visible = true;
-                break;
-            }
-        }
-
-        // Hitscan: ray from camera center vs alive pedestrians
-        camera.getWorldDirection(this.game.gtaCamForward.fwd);
-        const dir = this.game.gtaCamForward.fwd;
-        const peds = this.game.worldSystems ? this.game.worldSystems.pedestrians : [];
-        let best = null, bestT = 70;
-        for (const ped of peds) {
-            if (ped.state === 'DEAD') continue;
-            const cx = ped.position.x - origin.x;
-            const cy = ped.position.y + 0.9 - origin.y;
-            const cz = ped.position.z - origin.z;
-            const t = cx * dir.x + cy * dir.y + cz * dir.z;
-            if (t < 0 || t > bestT) continue;
-            const px = origin.x + dir.x * t, py = origin.y + dir.y * t, pz = origin.z + dir.z * t;
-            const d2 = (px - ped.position.x) ** 2 + (py - (ped.position.y + 0.9)) ** 2 + (pz - ped.position.z) ** 2;
-            if (d2 < 0.65) { best = ped; bestT = t; }
-        }
-        if (best) {
-            if (best.die()) this.game.onCrimeCommitted(1, false);
-            this.game.addMoney(CONFIG.moneyPerKill / 2);
-        }
-        if (this.game.audioManager) this.game.audioManager.playGunshot();
-    }
-}
-const playerPosHelper = new THREE.Vector3();
-
-// ============================================================
-// WORLD SYSTEMS MANAGER - pedestrians, roaming traffic, police pursuit
-// ============================================================
-class WorldSystems {
-    constructor(game) {
-        this.game = game;
-        this.scene = game.scene;
-        this.world = game.world;
-
-        this.pedestrians = [];
-        this.traffic = [];
-        this.police = [];
-        this.PED_COUNT = 14;
-        this.TRAFFIC_COUNT = 10;
-        this.MAX_POLICE = 4;
-        this.updateTimer = 0;
-
-        for (let i = 0; i < this.PED_COUNT; i++) {
-            const p = new Pedestrian(this.scene, this.world, i);
-            this.respawnPed(p);
-            this.pedestrians.push(p);
-        }
-
-        const types = ['sedan', 'sports', 'hatchback', 'truck', 'sedan',
-                       'hatchback', 'sports', 'truck', 'sedan', 'hatchback'];
-        const roads = this.world._roadPolylines || [];
-        for (let i = 0; i < this.TRAFFIC_COUNT; i++) {
-            const v = new TrafficVehicle(this.scene, this.world, types[i % types.length]);
-            v.placeOnRoad(Math.floor(Math.random() * (roads.length || 1)));
-            this.traffic.push(v);
-        }
-    }
-
-    respawnPed(ped) {
-        const pp = this.game.playerWorldPos || new THREE.Vector3();
-        ped.respawnNear(pp);
-    }
-
-    spawnPoliceCar() {
-        const v = new TrafficVehicle(this.scene, this.world, 'police');
-        const pp = this.game.playerWorldPos;
-        const roads = this.world._roadPolylines;
-        let best = 0, bestD = Infinity;
-        for (let i = 0; i < roads.length; i++) {
-            const s = roads[i];
-            const mx = (s.x1 + s.x2) / 2, mz = (s.z1 + s.z2) / 2;
-            const d = Math.hypot(mx - pp.x, mz - pp.z);
-            if (d > 60 && d < bestD) { bestD = d; best = i; }
-        }
-        v.placeOnRoad(best);
-        this.police.push(v);
-    }
-
-    clearPolice() {
-        for (const cop of this.police) this.scene.remove(cop.mesh);
-        this.police.length = 0;
-    }
-
-    update(deltaTime) {
-        const game = this.game;
-        const pp = game.playerWorldPos;
-
-        // --- Pedestrians (only simulate near player) ---
-        for (const ped of this.pedestrians) {
-            const d = Math.hypot(ped.position.x - pp.x, ped.position.z - pp.z);
-            if (ped.state === 'DEAD') {
-                if (ped.deadTimer > 20 || d > 220) this.respawnPed(ped);
-                else ped.update(deltaTime, pp, false);
-                continue;
-            }
-            if (d > 220) { this.respawnPed(ped); continue; }
-            if (d < 90) ped.update(deltaTime, pp, game.playerThreatening);
-        }
-
-        // --- Traffic ---
-        for (const car of this.traffic) {
-            if (car.isOccupied) continue;
-            const d = Math.hypot(car.position.x - pp.x, car.position.z - pp.z);
-            if (d > 260) {
-                car.placeOnRoad(Math.floor(Math.random() * (this.world._roadPolylines.length || 1)));
-                continue;
-            }
-            if (d < 120) {
-                car.update(deltaTime, this.world, this.pedestrians);
-                // traffic runs over pedestrians
-                for (const ped of this.pedestrians) {
-                    if (ped.state === 'DEAD') continue;
-                    if (Math.abs(car.speed) > 3 &&
-                        Math.hypot(ped.position.x - car.position.x, ped.position.z - car.position.z) < 2.2) {
-                        if (ped.die()) game.onCrimeCommitted(1, true);
-                    }
-                }
-            }
-        }
-
-        // --- Police pursuit ---
-        this.updateTimer += deltaTime;
-        if (game.wantedLevel > 0) {
-            while (this.police.length < Math.min(this.MAX_POLICE, game.wantedLevel)) {
-                this.spawnPoliceCar();
-            }
-            for (const cop of this.police) {
-                this.copChase(cop, deltaTime, pp);
-            }
-            // cops shoot when close (throttled)
-            if (this.updateTimer > 0.8) {
-                this.updateTimer = 0;
-                for (const cop of this.police) {
-                    const d = Math.hypot(cop.position.x - pp.x, cop.position.z - pp.z);
-                    if (d < 12 && !game.isDead) game.damagePlayer(4, 'cop');
-                }
-            }
-        } else if (this.police.length) {
-            // wanted cleared -> cruisers withdraw and despawn
-            for (const cop of this.police) {
-                cop.speed *= 0.98;
-                cop.applyTransform(deltaTime);
-            }
-            this.clearPolice();
-        }
-    }
-
-    copChase(cop, dt, pp) {
-        const eng = cop.bp.engine;
-        const dx = pp.x - cop.position.x, dz = pp.z - cop.position.z;
-        const dist = Math.hypot(dx, dz);
-        const targetAngle = Math.atan2(-dx, -dz);
-        let diff = targetAngle - cop.rotation;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        cop.steering = THREE.MathUtils.clamp(diff * 1.6, -0.5, 0.5);
-        if (Math.abs(cop.speed) > 0.3) {
-            cop.rotation += cop.steering * (cop.speed / eng.maxSpeed) * eng.grip * dt;
-        }
-        const cruise = dist > 8 ? eng.maxSpeed * 0.85 : 0;
-        if (cop.speed < cruise) cop.speed = Math.min(cruise, cop.speed + eng.accel * dt);
-        else cop.speed *= Math.pow(0.9, dt * 60);
-        cop.position.x += -Math.sin(cop.rotation) * cop.speed * dt;
-        cop.position.z += -Math.cos(cop.rotation) * cop.speed * dt;
-        cop.position.y = 0.12;
-        if (dist < 3.2 && Math.abs(cop.speed) > 4 && !this.game.isDead) {
-            this.game.damagePlayer(8, 'ram');
-        }
-        cop.applyTransform(dt);
-    }
-}
-
 // HELICOPTER PROTOTYPE - Standalone 6-DOF Flight System
 // ============================================================
 class Helicopter {
@@ -3474,16 +2519,6 @@ class CharacterController {
         this.playerCollider = new CapsuleCollider(this.position, 0.4, 1.8);
         this.crouchHeight = 1.2;
         this.standHeight = 1.8;
-
-        // Fall-damage tracking (reported to the game's health system on landing)
-        this.wasAirborne = false;
-        this.airMinY = 0;
-        this.onLand = null; // callback(impactSpeed)
-    }
-
-    getFacingDirection(out) {
-        out.set(-Math.sin(this.currentRotation), 0, -Math.cos(this.currentRotation));
-        return out;
     }
 
     update(deltaTime, input, cameraYaw) {
@@ -3701,20 +2736,7 @@ class CharacterController {
             } else {
                 this.state = PlayerState.FALL;
             }
-            this.wasAirborne = true;
-            this.airMinY = Math.min(this.airMinY, this.position.y);
-        } else if (this.wasAirborne) {
-            this.wasAirborne = false;
-            const drop = this.position.y - this.airMinY;
-            if (drop > CONFIG.fallDamageThreshold && this.onLand) {
-                this.onLand(drop);
-            }
-            this.airMinY = this.position.y;
-        }
-
-        if (this.isGrounded) this.airMinY = this.position.y;
-
-        if (this.isGrounded && this.isCrouching) {
+        } else if (this.isCrouching) {
             this.state = PlayerState.CROUCH;
         } else if (hasMovement && this.currentSpeed > 0.5) {
             if (input.run && this.currentSpeed > CONFIG.walkSpeed) {
@@ -4557,29 +3579,11 @@ class DayNightCycle {
         this.scene.fog = new THREE.Fog(0xaaccee, 100, 800);
     }
 
-    skipTime() {
-        const phases = [5, 8, 12, 17, 19, 23, 29]; // dawn, morning, noon, dusk, night-ish, midnight, next dawn(+24)
-        for (const ph of phases) {
-            if (ph > this.gameTime + 0.15) {
-                this.gameTime = ph >= 24 ? ph - 24 : ph;
-                return;
-            }
-        }
-        this.gameTime = 5;
-    }
-
     update(deltaTime) {
-        // One full day/night cycle every ~4 real minutes
-        this.gameTime += deltaTime / 10.0;
+        this.gameTime += deltaTime / 60.0;
         if (this.gameTime >= 24.0) {
             this.gameTime -= 24.0;
         }
-        // SHIFT: instantly advance to the next time phase (dawn/day/dusk/night)
-        if (this._shiftWasDown === undefined) this._shiftWasDown = false;
-        const shiftDown = !!(window.__game && window.__game.input &&
-                             (window.__game.input.keys['ShiftLeft'] || window.__game.input.keys['ShiftRight']));
-        if (shiftDown && !this._shiftWasDown) this.skipTime();
-        this._shiftWasDown = shiftDown;
 
         const hours = Math.floor(this.gameTime);
         const minutes = Math.floor((this.gameTime - hours) * 60);
@@ -7752,14 +6756,15 @@ class World {
     }
 
     createLighting() {
-        // BLACK-SCREEN FIX: the old version of this method set an opaque teal
-        // FogExp2 and a solid background color on the scene, which overrode the
-        // DayNightCycle's sky/fog every frame (DayNightCycle is created AFTER
-        // World), rendering the entire game view black while the HTML HUD kept
-        // working. Lighting is owned by DayNightCycle now — do nothing here.
-        return;
+        // Vibrant low-poly teal atmosphere
+        const tealColor = 0x1a6b85;
 
-        // eslint-disable-next-line no-unreachable
+        // Set scene background to vibrant teal
+        this.scene.background = new THREE.Color(tealColor);
+
+        // Add exponential fog for atmosphere
+        this.scene.fog = new THREE.FogExp2(tealColor, 0.002);
+
         // Warm directional sun light at 45° angle (#ffeedd)
         const sunLight = new THREE.DirectionalLight(0xffeedd, 1.5);
         sunLight.position.set(100, 100, 50); // 45° angle
@@ -8771,45 +7776,6 @@ class AudioManager {
 
         return osc;
     }
-
-    // One-shot gunshot: noise burst + low thump (WebAudio, no assets)
-    playGunshot() {
-        if (!this.initialized) return;
-        try {
-            const ctx = this.audioContext;
-            const t0 = ctx.currentTime;
-
-            // Noise crack
-            const dur = 0.12;
-            const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
-            const data = buf.getChannelData(0);
-            for (let i = 0; i < data.length; i++) {
-                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2.2);
-            }
-            const src = ctx.createBufferSource();
-            src.buffer = buf;
-            const hp = ctx.createBiquadFilter();
-            hp.type = 'highpass';
-            hp.frequency.value = 900;
-            const ng = ctx.createGain();
-            ng.gain.setValueAtTime(0.5, t0);
-            ng.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-            src.connect(hp); hp.connect(ng); ng.connect(this.masterGain);
-            src.start(t0);
-
-            // Low body thump
-            const osc = ctx.createOscillator();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(160, t0);
-            osc.frequency.exponentialRampToValueAtTime(40, t0 + 0.09);
-            const og = ctx.createGain();
-            og.gain.setValueAtTime(0.35, t0);
-            og.gain.exponentialRampToValueAtTime(0.001, t0 + 0.1);
-            osc.connect(og); og.connect(this.masterGain);
-            osc.start(t0);
-            osc.stop(t0 + 0.12);
-        } catch (e) { /* audio not critical */ }
-    }
 }
 
 // ============================================================
@@ -8953,159 +7919,14 @@ class OutboundGame {
             this.world.collisionSystem.addCollider(this.vehicle.collider);
         }
 
-        // Initialize world systems (pedestrians, roaming traffic, police)
-        this.worldSystems = null; // created after HUD refs exist
-
-        // Health / money / wanted state
-        this.health = CONFIG.maxHealth;
-        this.money = 500;
-        this.wantedLevel = 0;
-        this.wantedTimer = 0;
-        this.timeSinceDamage = 999;
-        this.isDead = false;
-        this.respawnTimer = 0;
-        this.playerThreatening = false;
-        this.playerWorldPos = this.controller.getPosition().clone();
-        this.gtaCamForward = { fwd: new THREE.Vector3(0, 0, -1) };
-        this._lastFallY = this.playerWorldPos.y;
-        window.__game = this;
-
-        // HUD element refs
-        this.hudHealthFill = document.getElementById('health-bar-fill');
-        this.hudMoney = document.getElementById('money-display');
-        this.hudWanted = document.getElementById('wanted-stars');
-        this.hudAmmo = document.getElementById('ammo-text');
-        this.hudDamageFlash = document.getElementById('damage-flash');
-        this.hudDeathOverlay = document.getElementById('death-overlay');
-        this.hudRespawnTimer = document.getElementById('respawn-timer');
-        this.updateHealthHUD();
-        this.updateMoneyHUD();
-        this.updateWantedHUD();
-
-        // Weapon system (single pistol) — created last, after all game state exists
-        try {
-            this.weapon = new WeaponSystem(this);
-        } catch (e) {
-            console.warn('Weapon system failed to initialize:', e);
-            this.weapon = null;
+        // Add helicopter collider to collision system
+        if (this.helicopter && this.helicopter.collider) {
+            this.world.collisionSystem.addCollider(this.helicopter.collider);
         }
-        this.updateAmmoHUD();
-
-        // World systems: pedestrians, roaming traffic, police
-        try {
-            this.worldSystems = new WorldSystems(this);
-        } catch (e) {
-            console.warn('World systems failed to initialize:', e);
-            this.worldSystems = null;
-        }
-    }
-
-    // ----------------------------------------------------------
-    // HEALTH SYSTEM
-    // ----------------------------------------------------------
-    updateHealthHUD() {
-        if (!this.hudHealthFill) return;
-        const pct = Math.max(0, this.health) / CONFIG.maxHealth;
-        this.hudHealthFill.style.width = (pct * 100) + '%';
-        this.hudHealthFill.classList.toggle('low', pct <= 0.25);
-        this.hudHealthFill.classList.toggle('mid', pct > 0.25 && pct <= 0.55);
-    }
-
-    damagePlayer(amount, source) {
-        if (this.isDead || amount <= 0) return;
-        this.health -= amount;
-        this.timeSinceDamage = 0;
-        // red screen flash
-        if (this.hudDamageFlash) {
-            this.hudDamageFlash.style.transition = 'none';
-            this.hudDamageFlash.style.opacity = '0.65';
-            requestAnimationFrame(() => {
-                this.hudDamageFlash.style.transition = 'opacity 0.6s ease-out';
-                this.hudDamageFlash.style.opacity = '0';
-            });
-        }
-        if (this.health <= 0) {
-            this.health = 0;
-            this.die();
-        }
-        this.updateHealthHUD();
-    }
-
-    healPlayer(amount) {
-        if (this.isDead) return;
-        this.health = Math.min(CONFIG.maxHealth, this.health + amount);
-        this.updateHealthHUD();
-    }
-
-    die() {
-        this.isDead = true;
-        this.respawnTimer = 5;
-        if (this.hudDeathOverlay) this.hudDeathOverlay.classList.add('active');
-        // exit vehicles on death
-        if (this.inVehicle) {
-            this.vehicle.exit(new THREE.Vector3());
-            this.inVehicle = false;
-            this.character.getMesh().visible = true;
-        }
-        if (this.inHelicopter) {
-            this.inHelicopter = false;
-            this.character.getMesh().visible = true;
-        }
-        document.getElementById('speedometer').style.display = 'none';
-    }
-
-    respawn() {
-        this.isDead = false;
-        this.health = CONFIG.maxHealth;
-        this.wantedLevel = 0;
-        this.wantedTimer = 0;
-        this.money = Math.max(0, Math.floor(this.money * 0.75)); // medical fees
-        this.controller.position.set(0, this.world.getGroundHeight(0, 0), 0);
-        this.controller.velocity.set(0, 0, 0);
-        this.character.getMesh().position.copy(this.controller.position);
-        this.playerWorldPos.copy(this.controller.position);
-        if (this.hudDeathOverlay) this.hudDeathOverlay.classList.remove('active');
-        this.updateHealthHUD();
-        this.updateMoneyHUD();
-        this.updateWantedHUD();
-    }
-
-    // ----------------------------------------------------------
-    // MONEY & WANTED SYSTEMS
-    // ----------------------------------------------------------
-    addMoney(amount) {
-        this.money = Math.max(0, Math.min(999999, this.money + Math.round(amount)));
-        this.updateMoneyHUD();
-    }
-
-    updateMoneyHUD() {
-        if (this.hudMoney) this.hudMoney.textContent = '$' + this.money.toLocaleString();
-    }
-
-    updateWantedHUD() {
-        if (!this.hudWanted) return;
-        let s = '';
-        for (let i = 0; i < 5; i++) s += i < this.wantedLevel ? '★' : '<span style="opacity:0.25">★</span>';
-        this.hudWanted.innerHTML = s;
-    }
-
-    onCrimeCommitted(stars, cashBounty) {
-        this.wantedLevel = Math.min(5, this.wantedLevel + stars);
-        this.wantedTimer = 0;
-        if (cashBounty) this.addMoney(CONFIG.moneyPerKill);
-        this.updateWantedHUD();
-    }
-
-    updateAmmoHUD() {
-        if (!this.hudAmmo) return;
-        const w = this.weapon;
-        if (!w) { this.hudAmmo.textContent = '12 / ∞'; return; }
-        this.hudAmmo.textContent = (w.reloading ? 'RELOADING' : w.ammo) + ' / ∞';
     }
 
     initInput() {
         this.input = new InputManager();
-        // Weapon system is created later (initWorld) once world state exists.
     }
 
     initAudio() {
@@ -9201,44 +8022,9 @@ class OutboundGame {
     animate() {
         requestAnimationFrame(() => this.animate());
 
-        try {
-        this._frame();
-        } catch (err) {
-            // Last-resort guard: never let a single-frame error kill the render loop
-            if (!this._loopErrLogged) {
-                this._loopErrLogged = true;
-                console.error('Game loop error (rendering continues):', err);
-            }
-            try { this.renderer.render(this.scene, this.camera); } catch (e2) { /* ignore */ }
-        }
-    }
-
-    _frame() {
         const deltaTime = Math.min(this.clock.getDelta(), 0.05);
 
-        // ---- Death / respawn freeze ----
-        if (this.isDead) {
-            this.respawnTimer -= deltaTime;
-            if (this.hudRespawnTimer) {
-                this.hudRespawnTimer.textContent = 'Respawning in ' + Math.max(1, Math.ceil(this.respawnTimer)) + '...';
-            }
-            if (this.respawnTimer <= 0) this.respawn();
-            this.renderer.render(this.scene, this.camera);
-            return;
-        }
-
         const mouseDelta = this.input.consumeMouse();
-
-        // When pointer is locked, the OS cursor (and any lingering canvas click)
-        // can cause the browser to exit pointer lock immediately. Re-request it
-        // so aiming/camera control stays usable and the game never feels frozen.
-        if (!this.input.isMobile && !this.input.isLocked && !this._relockCool) {
-            this._relockCool = performance.now() + 600;
-            try { document.body.requestPointerLock(); } catch (e) { /* ignore */ }
-        } else if (this._relockCool && performance.now() > this._relockCool
-                   && !this.input.isMobile && !this.input.isLocked) {
-            this._relockCool = 0;
-        }
 
         // Handle vehicle/helicopter enter/exit
         const fKeyDown = this.input.enterVehicle;
@@ -9377,13 +8163,6 @@ class OutboundGame {
             const cameraYaw = this.gtaCamera.getYaw();
             this.controller.update(deltaTime, this.input, cameraYaw);
 
-            // Fall damage: track vertical speed while airborne
-            const vy = this.controller.velocity ? this.controller.velocity.y : 0;
-            if (vy < -CONFIG.fallDamageThreshold) {
-                const impact = Math.min(45, (-vy - CONFIG.fallDamageThreshold) * 3.2);
-                this.damagePlayer(impact, 'fall');
-            }
-
             const currentState = this.controller.getState();
             if (currentState !== this._prevState) {
                 this.stateElement.textContent = `STATE: ${currentState}`;
@@ -9392,33 +8171,6 @@ class OutboundGame {
         }
 
         this.fKeyWasDown = fKeyDown;
-
-        // ---- Player position cache + threat flag (for world systems) ----
-        const activePos = this.inVehicle ? this.vehicle.getPosition() :
-                          (this.inHelicopter ? this.helicopter.getPosition() : this.controller.getPosition());
-        this.playerWorldPos.copy(activePos);
-        this.playerThreatening = (this.inVehicle && Math.abs(this.vehicle.speed) > 4) ||
-                                 !!(this.weapon && this.weapon.ammo < this.weapon.magSize && this.input.isLocked);
-
-        // ---- Weapon update (pistol: G fire / R reload) ----
-        if (this.weapon) this.weapon.update(deltaTime, this.camera, this.controller.position);
-
-        // ---- World systems: pedestrians, traffic AI, police pursuit ----
-        if (this.worldSystems) this.worldSystems.update(deltaTime);
-
-        // ---- Health regen & wanted decay ----
-        this.timeSinceDamage += deltaTime;
-        if (this.health < CONFIG.maxHealth && this.timeSinceDamage > CONFIG.healthRegenDelay) {
-            this.healPlayer(CONFIG.healthRegenRate * deltaTime);
-        }
-        if (this.wantedLevel > 0) {
-            this.wantedTimer += deltaTime;
-            if (this.wantedTimer > 25) { // lose the cops after ~25s clean
-                this.wantedLevel--;
-                this.wantedTimer = 0;
-                this.updateWantedHUD();
-            }
-        }
 
         // Update day/night cycle (throttled to 30 FPS for performance)
         this.dayNightUpdateCounter = (this.dayNightUpdateCounter || 0) + 1;
@@ -9439,6 +8191,7 @@ class OutboundGame {
         this.world.animateWater(this.clock.elapsedTime);
 
         // Update lights with player position for distance-based activation
+        const activePos = this.inVehicle ? this.vehicle.getPosition() : this.controller.getPosition();
         this.world.updateLights(cycleState.isNight, activePos);
 
         // Update LOD system based on camera position
