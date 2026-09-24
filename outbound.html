@@ -7752,15 +7752,14 @@ class World {
     }
 
     createLighting() {
-        // Vibrant low-poly teal atmosphere
-        const tealColor = 0x1a6b85;
+        // BLACK-SCREEN FIX: the old version of this method set an opaque teal
+        // FogExp2 and a solid background color on the scene, which overrode the
+        // DayNightCycle's sky/fog every frame (DayNightCycle is created AFTER
+        // World), rendering the entire game view black while the HTML HUD kept
+        // working. Lighting is owned by DayNightCycle now — do nothing here.
+        return;
 
-        // Set scene background to vibrant teal
-        this.scene.background = new THREE.Color(tealColor);
-
-        // Add exponential fog for atmosphere
-        this.scene.fog = new THREE.FogExp2(tealColor, 0.002);
-
+        // eslint-disable-next-line no-unreachable
         // Warm directional sun light at 45° angle (#ffeedd)
         const sunLight = new THREE.DirectionalLight(0xffeedd, 1.5);
         sunLight.position.set(100, 100, 50); // 45° angle
